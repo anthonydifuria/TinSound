@@ -1,0 +1,876 @@
+
+// ------------------------------------------------------------
+// periphonic (3D) decoder (8-channels arranged as a cube)
+// define encoder / decoder matrices
+~encoder = FoaEncoderMatrix.newOmni;
+~decoder = FoaDecoderMatrix.newPeri;
+// inspect
+~encoder.kind;
+~encoder.numChannels;
+~encoder.dirChannels;
+
+~decoder.kind;
+~decoder.numChannels;
+~decoder.dirChannels*180/pi;
+
+(
+z= {
+	arg a_min,a_max,s;
+	var a_dif;
+
+
+	a_dif =  (a_max-a_min);
+
+	v = ((s)*a_dif+a_min);
+};
+)
+
+(
+
+s =SynthDef(\orbital_S, {arg sig1,sig2,sig3,sig4,sig5,
+	sl1= 1,sl2= 1,sl3= 1,sl4= 1,sl5= 1,sl_mix=1,sl_total=1,
+	temp_total= 0.1,temp1s= 0.1,temp2s= 0.1,temp3s= 0.1,temp4s= 0.1,temp5s= 0.1;
+	var sig_mix,
+	rev,out;                // audio signal.
+    var
+	gauss = Array.fill(5),
+	angle = Array.fill(5),
+	azim = Array.fill(5),
+	elevation = Array.fill(5);           // angle and azimuth control
+
+
+
+	// display encoder and decoder
+	"Ambisonic encoding via % encoder".format(~encoder.kind).postln;
+	"Ambisonic decoding via % decoder".format(~decoder.kind).postln;
+
+
+	sig1 = In.ar(sig1,1);
+	sig2 = In.ar(sig2,1);
+	sig3 = In.ar(sig3,1);
+	sig4 = In.ar(sig4,1);
+	sig5 = In.ar(sig5,1);
+
+
+	sig1 =GrainIn.ar(1,Dust.kr(1),sl1,sig1);
+	sig2 =GrainIn.ar(1,Dust.kr(1),sl1,sig2);
+	sig3 =GrainIn.ar(1,Dust.kr(1),sl1,sig3);
+	sig4 =GrainIn.ar(1,Dust.kr(1),sl1,sig4);
+	sig5 =GrainIn.ar(1,Dust.kr(1),sl1,sig5);
+
+
+	//ORBITALS  S
+
+
+	//1S
+
+	gauss[0] = TGaussRand.kr(0,1,Dust.kr(1));
+
+	angle[0] = z.value(0,0.3,((SinOsc.kr((temp1s*temp_total),0,gauss[0],1))/2));
+	azim[0] =  SinOsc.kr((temp1s*temp_total),0,gauss[0]);
+	elevation[0] = SinOsc.kr((temp1s*temp_total),0,gauss[0]);
+//encode
+	sig1 = FoaEncode.ar(sig1, ~encoder);
+//distance
+	sig1 = FoaDirectO.ar(sig1,angle[0]);
+//azimut - elevation
+   sig1 = FoaTransform.ar(sig1, 'push', pi/2, azim[0],elevation[0]);
+
+	//2S
+
+	gauss[1] = TGaussRand.kr(0,1,Dust.kr(1));
+
+	angle[1] = z.value(0.3,0.6,((SinOsc.kr((temp2s*temp_total),0,gauss[1],1))/2));
+	azim[1] =  SinOsc.kr((temp2s*temp_total),0,gauss[1]);
+	elevation[1] = SinOsc.kr((temp2s*temp_total),0,gauss[1]);
+//encode
+    sig2 = FoaEncode.ar(sig2, ~encoder);
+//distance
+	sig2 = FoaDirectO.ar(sig2,angle[1]);
+//azimut - elevation
+   sig2 = FoaTransform.ar(sig2, 'push', pi/2, azim[1],elevation[1]);
+
+	//3S
+
+	gauss[2] = TGaussRand.kr(0,1,Dust.kr(1));
+
+	angle[2] = z.value(0.6,0.9,((SinOsc.kr((temp3s*temp_total),0,gauss[2],1))/2));
+	azim[2] =  SinOsc.kr((temp3s*temp_total),0,gauss[2]);
+	elevation[2] = SinOsc.kr((temp3s*temp_total),0,gauss[2]);
+
+//encode
+    sig3 = FoaEncode.ar(sig3, ~encoder);
+//distance
+	sig3 = FoaDirectO.ar(sig3,angle[2]);
+//azimut - elevation
+   sig3 = FoaTransform.ar(sig3, 'push', pi/2, azim[2],elevation[2]);
+
+	//4S
+
+	gauss[3] = TGaussRand.kr(0,1,Dust.kr(1));
+
+	angle[3] = z.value(0.9,1.2,((SinOsc.kr((temp4s*temp_total),0,gauss[3],1))/2));
+	azim[3] =  SinOsc.kr((temp4s*temp_total),0,gauss[3]);
+	elevation[3] = SinOsc.kr((temp4s*temp_total),0,gauss[3]);
+//encode
+    sig4 = FoaEncode.ar(sig4, ~encoder);
+//distance
+	sig4 = FoaDirectO.ar(sig4,angle[3]);
+//azimut - elevation
+   sig4 = FoaTransform.ar(sig4, 'push', pi/2, azim[3],elevation[3]);
+
+	//5S
+
+
+	gauss[4] = TGaussRand.kr(0,1,Dust.kr(1));
+
+	angle[4] = z.value(1.2,1.5,((SinOsc.kr((temp5s*temp_total),0,gauss[4],1))/2));
+	azim[4] =  SinOsc.kr((temp5s*temp_total),0,gauss[4]);
+	elevation[4] = SinOsc.kr((temp5s*temp_total),0,gauss[4]);
+//encode
+    sig5 = FoaEncode.ar(sig5, ~encoder);
+//distance
+	sig5 = FoaDirectO.ar(sig5,angle[4]);
+//azimut - elevation
+   sig5 = FoaTransform.ar(sig5, 'push', pi/2, azim[4],elevation[4]);
+
+
+	sig_mix = (sig1+sig2+sig3+sig4+sig5)/5;
+
+	sig_mix = sig_mix*sl_mix;
+
+	rev = BFFreeVerb.ar (sig_mix[0], sig_mix[1], sig_mix[2], sig_mix[3], mix: 1, room: 0.999, damp: 1, diffuse: 0.1, mul: 1, add: 0);
+	rev = rev*0;
+out = sig_mix+rev;
+	// decode (to cube)
+//   out = FoaDecode.ar(sig_mix+rev, ~decoder);
+	Out.ar(0,out*sl_total);
+
+}).add;
+
+s = Synth(\orbital_S, [\sig1,b.index,\sig2,b.index+1,\sig3,b.index+2,\sig4,b.index+3,\sig5,b.index+4],1,\addToTail);s.run;
+
+)
+
+(
+
+//ORBITALE P
+p =SynthDef(\orbital_P, {arg sig1,sig2,sig3,sig4,sig5,sig6,sig7,sig8,sig9,sig10,
+	sl1,sl2,sl3,sl4,sl5,sl6,sl7,sl8,sl9,sl10,sl_mix,
+	temp_total = 0.1,temp2p= 0.1,temp3p= 0.1,temp4p= 0.1,temp5p= 0.1;
+	var sig_mix,
+	rev,out;
+    var
+
+	gauss = Array.fill(20),
+	angle = Array.fill(10),
+	azim = Array.fill(10),
+	elevation = Array.fill(10);
+
+
+
+   // display encoder and decoder
+    "Ambisonic encoding via % encoder".format(~encoder.kind).postln;
+   "Ambisonic decoding via % decoder".format(~decoder.kind).postln;
+
+
+	sig1 = In.ar(sig1*sl1,1);
+	sig2 = In.ar(sig2*sl2,1);
+	sig3 = In.ar(sig3*sl3,1);
+	sig4 = In.ar(sig4*sl4,1);
+	sig5 = In.ar(sig5*sl5,1);
+	sig6 = In.ar(sig6*sl6,1);
+	sig7 = In.ar(sig7*sl7,1);
+	sig8 = In.ar(sig8*sl8,1);
+	sig9 = In.ar(sig9*sl9,1);
+	sig10 = In.ar(sig10*sl10,1);
+
+
+
+	//ORBITALS  P
+	//2Px
+	gauss[0] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[0] = z.value(0,0.375,(SinOsc.kr((temp2p*temp_total),0,gauss[0],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[0] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[0],1)/2));
+			elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[0],1)/2));
+		),
+	(
+			azim[0] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[0],1)/2));
+			elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[0],1)/2));
+	););
+//encode
+    sig1 = FoaEncode.ar(sig1, ~encoder);
+//distance
+	sig1 = FoaDirectO.ar(sig1,angle[0]);
+//azimut - elevation
+   sig1 = FoaTransform.ar(sig1, 'push', pi/2, azim[0],elevation[0]);
+
+
+
+
+
+	//2Py
+	gauss[1] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[1] = z.value(0,0.375,(SinOsc.kr((temp2p*temp_total),0,gauss[1],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[1] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[1],1)/2));
+			elevation[1] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[1],1)/2));
+		),
+		(
+			azim[1] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[1],1)/2));
+			elevation[1] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[1],1)/2));
+	););
+//encode
+    sig2 = FoaEncode.ar(sig2, ~encoder);
+//distance
+	sig2 = FoaDirectO.ar(sig2,angle[1]);
+//azimut - elevation
+   sig2 = FoaTransform.ar(sig2, 'push', pi/2, azim[1],elevation[1]);
+
+
+
+
+	//2Pz
+	gauss[2] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[2] = z.value(0,0.375,(SinOsc.kr((temp2p*temp_total),0,gauss[2],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[2] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[2],1)/2));
+			elevation[2] = z.value(0.375pi,0.5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[2],1)/2));
+		),
+		(
+			azim[2] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[2],1)/2));
+			elevation[2] = z.value(-0.5pi,-0.375pi,(SinOsc.kr((temp2p*temp_total),0,gauss[2],1)/2));
+	););
+//encode
+    sig3 = FoaEncode.ar(sig3, ~encoder);
+//distance
+	sig3 = FoaDirectO.ar(sig3,angle[2]);
+//azimut - elevation
+   sig3 = FoaTransform.ar(sig3, 'push', pi/2, azim[2],elevation[2]);
+
+
+
+
+
+	//3Px
+	gauss[3] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[3] = z.value(0.375,0.75,(SinOsc.kr((temp2p*temp_total),0,gauss[3],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[3] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[3],1)/2));
+			elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[3],1)/2));
+		),
+		(
+			azim[3] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[3],1)/2));
+			elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[3],1)/2));
+	););
+//encode
+    sig4 = FoaEncode.ar(sig4, ~encoder);
+//distance
+	sig4 = FoaDirectO.ar(sig4,angle[3]);
+//azimut - elevation
+   sig4 = FoaTransform.ar(sig4, 'push', pi/2, azim[3],elevation[3]);
+
+
+	//3Py
+	gauss[4] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[4] = z.value(0.375,0.75,(SinOsc.kr((temp2p*temp_total),0,gauss[4],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[4],1)/2));
+			elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[4],1)/2));
+		),
+		(
+			azim[4] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[4],1)/2));
+			elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[4],1)/2));
+	););
+//encode
+    sig5 = FoaEncode.ar(sig5, ~encoder);
+//distance
+	sig5 = FoaDirectO.ar(sig5,angle[4]);
+//azimut - elevation
+   sig5 = FoaTransform.ar(sig5, 'push', pi/2, azim[4],elevation[4]);
+
+
+	//3Pz
+	gauss[5] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[5] = z.value(0.375,0.75,(SinOsc.kr((temp2p*temp_total),0,gauss[5],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[5] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[5],1)/2));
+			elevation[5] = z.value(0.375pi,0.5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[5],1)/2));
+		),
+		(
+			azim[5] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[5],1)/2));
+			elevation[5] = z.value(-0.5pi,-0.375pi,(SinOsc.kr((temp2p*temp_total),0,gauss[5],1)/2));
+	););
+//encode
+    sig6 = FoaEncode.ar(sig6, ~encoder);
+//distance
+	sig6 = FoaDirectO.ar(sig6,angle[5]);
+//azimut - elevation
+   sig6 = FoaTransform.ar(sig6, 'push', pi/2, azim[5],elevation[5]);
+
+
+	//4Px
+	gauss[6] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[6] =  z.value(0.75,1.125,(SinOsc.kr((temp2p*temp_total),0,gauss[6],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[6] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[6],1)/2));
+			elevation[6] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[6],1)/2));
+		),
+		(
+			azim[6] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[6],1)/2));
+			elevation[6] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[6],1)/2));
+	););
+//encode
+    sig7 = FoaEncode.ar(sig7, ~encoder);
+//distance
+	sig7 = FoaDirectO.ar(sig7,angle[6]);
+//azimut - elevation
+   sig7 = FoaTransform.ar(sig7, 'push', pi/2, azim[6],elevation[6]);
+
+
+	//4Py
+	gauss[7] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[7] = z.value(0.75,1.125,(SinOsc.kr((temp2p*temp_total),0,gauss[7],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[7] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[7],1)/2));
+			elevation[7] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[7],1)/2));
+		),
+		(
+			azim[7] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[7],1)/2));
+			elevation[7] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[7],1)/2));
+	););
+//encode
+    sig8 = FoaEncode.ar(sig8, ~encoder);
+//distance
+	sig8 = FoaDirectO.ar(sig8,angle[7]);
+//azimut - elevation
+   sig8 = FoaTransform.ar(sig8, 'push', pi/2, azim[7],elevation[7]);
+
+	//4Pz
+	gauss[8] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[8] = z.value(0.75,1.125,(SinOsc.kr((temp2p*temp_total),0,gauss[8],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[8] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[8],1)/2));
+			elevation[8] = z.value(0.375pi,0.5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[8],1)/2));
+		),
+		(
+			azim[8] = z.value(-5pi,5pi,(SinOsc.kr((temp2p*temp_total),0,gauss[8],1)/2));
+			elevation[8] = z.value(-0.5pi,-0.375pi,(SinOsc.kr((temp2p*temp_total),0,gauss[8],1)/2));
+	););
+//encode
+    sig9 = FoaEncode.ar(sig9, ~encoder);
+//distance
+	sig9 = FoaDirectO.ar(sig9,angle[8]);
+//azimut - elevation
+   sig9 = FoaTransform.ar(sig9, 'push', pi/2, azim[8],elevation[8]);
+
+	//5Px
+	gauss[9] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[9] =  z.value(1.125,1.5,(SinOsc.kr((temp2p*temp_total),0,gauss[9],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(
+			azim[9] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[9],1)/2));
+			elevation[9] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[9],1)/2));
+		),
+		(
+			azim[9] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp2p*temp_total),0,gauss[9],1)/2));
+			elevation[9] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp2p*temp_total),0,gauss[9],1)/2));
+	););
+//encode
+    sig10 = FoaEncode.ar(sig10, ~encoder);
+//distance
+	sig10 = FoaDirectO.ar(sig10,angle[9]);
+//azimut - elevation
+   sig10 = FoaTransform.ar(sig10, 'push', pi/2, azim[9],elevation[9]);
+
+	sig_mix = (sig1+sig2+sig3+sig4+sig5+sig6+sig7+sig8+sig9+sig10)/10;
+
+sig_mix = sig_mix*sl_mix;
+
+	rev = BFFreeVerb.ar (sig_mix[0], sig_mix[1], sig_mix[2], sig_mix[3], mix: 1, room: 0.999, damp: 1, diffuse: 0.1, mul: 1, add: 0);
+	rev = rev*0;
+out = sig_mix+rev;
+	// decode (to cube)
+//out = FoaDecode.ar(sig_mix+rev, ~decoder);
+	Out.ar(0,out);
+
+}).add;
+
+p = Synth(\orbital_P, [\sig1,b.index+5,\sig2,b.index+6,\sig3,b.index+7,\sig4,b.index+8,\sig5,b.index+9,\sig6,b.index+10,\sig7,b.index+11,\sig8,b.index+12,\sig9,b.index+13,\sig10,b.index+14],1,\addToTail);p.run;
+
+
+)
+
+(
+
+//ORBITALE D
+d =SynthDef(\orbital_D, {arg sig1,sig2,sig3,sig4,sig5,
+	sl1,sl2,sl3,sl4,sl5,sl_mix,
+	temp3d,temp_total;
+	var sig_mix,
+	rev,out;                // audio signal
+    var
+	gauss = Array.fill(20),
+	angle = Array.fill(10),
+	azim = Array.fill(10),
+	elevation = Array.fill(10);           // angle and azimuth control
+
+
+
+   // display encoder and decoder
+    "Ambisonic encoding via % encoder".format(~encoder.kind).postln;
+   "Ambisonic decoding via % decoder".format(~decoder.kind).postln;
+
+
+	sig1 = In.ar(sig1*sl1,1);
+	sig2 = In.ar(sig2*sl2,1);
+	sig3 = In.ar(sig3*sl3,1);
+	sig4 = In.ar(sig4*sl4,1);
+	sig5 = In.ar(sig5*sl5,1);
+
+
+	//ORBITALS  D
+
+
+
+
+	//3Dxy
+	gauss[0] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[0] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[0] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+			),
+			(
+				azim[0] = z.value(0.625pi,0.875pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[0] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+			),
+			(
+				azim[0] = z.value(-0.875pi,-0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[0],1)/2));
+			))
+
+	););
+
+
+//encode
+    sig1 = FoaEncode.ar(sig1, ~encoder);
+//distance
+	sig1 = FoaDirectO.ar(sig1,angle[0]);
+//azimut - elevation
+   sig1 = FoaTransform.ar(sig1, 'push', pi/2, azim[0],elevation[0]);
+
+	//3Dxz
+
+	gauss[1] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[1] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[1] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+			),
+			(
+				azim[1] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[1] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+			),
+			(
+				azim[1] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[1],1)/2));
+			))
+
+	););
+//encode
+    sig2 = FoaEncode.ar(sig2, ~encoder);
+//distance
+	sig2 = FoaDirectO.ar(sig2,angle[1]);
+//azimut - elevation
+   sig2 = FoaTransform.ar(sig2, 'push', pi/2, azim[1],elevation[1]);
+
+
+
+	//3Dyz
+	gauss[2] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[2] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[2] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+			),
+			(
+				azim[2] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[2] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+			),
+			(
+				azim[2] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[2],1)/2));
+			))
+
+	););
+
+//encode
+    sig3 = FoaEncode.ar(sig3, ~encoder);
+//distance
+	sig3 = FoaDirectO.ar(sig3,angle[2]);
+//azimut - elevation
+   sig3 = FoaTransform.ar(sig3, 'push', pi/2, azim[2],elevation[2]);
+
+	//3Dx^2-y^2
+
+	gauss[3] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[3] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[3] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+			),
+			(
+				azim[3] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+			),
+			(
+				azim[3] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[3],1)/2));
+			))
+
+	););
+//encode
+    sig4 = FoaEncode.ar(sig4, ~encoder);
+//distance
+	sig4 = FoaDirectO.ar(sig4,angle[3]);
+//azimut - elevation
+   sig4 = FoaTransform.ar(sig4, 'push', pi/2, azim[3],elevation[3]);
+
+
+
+
+	//3Dz^2
+	gauss[4] = TGaussRand.kr(0,1,Dust.kr(1));
+
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				angle[4] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1))/2);
+				azim[4] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+				elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+			),
+			(
+				angle[4] =  z.value(0,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1))/2);
+				azim[4] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+				elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+			))
+		),
+		(
+			angle[4] =  z.value(0.375,0.75,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1))/2);
+			azim[4] = z.value(-5pi,5pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+			elevation[4] = z.value(-0.0625pi,0.0625pi,(SinOsc.kr((temp3d*temp_total),0,gauss[4],1)/2));
+		);
+	);
+//encode
+    sig5 = FoaEncode.ar(sig5, ~encoder);
+//distance
+	sig5 = FoaDirectO.ar(sig5,angle[4]);
+//azimut - elevation
+   sig5 = FoaTransform.ar(sig5, 'push', pi/2, azim[4],elevation[4]);
+
+
+	sig_mix = (sig1+sig2+sig3+sig4+sig5)/5;
+
+	sig_mix = sig_mix*sl_mix;
+
+	rev = BFFreeVerb.ar (sig_mix[0], sig_mix[1], sig_mix[2], sig_mix[3], mix: 1, room: 0.999, damp: 1, diffuse: 0.1, mul: 1, add: 0);
+	rev = rev*0;
+
+out = sig_mix+rev;
+	// decode (to cube)
+//   out = FoaDecode.ar(sig_mix, ~decoder);
+	Out.ar(0,out);
+
+}).add;
+
+d = Synth(\orbital_D, [\sig1,b.index+15,\sig2,b.index+16,\sig3,b.index+17,\sig4,b.index+18,\sig5,b.index+19],1,\addToTail);d.run;
+)
+
+
+
+
+
+
+(
+
+//ORBITALE D
+e =SynthDef(\orbital_D, {arg sig1,sig2,sig3,sig4,sig5,
+	sl1,sl2,sl3,sl4,sl5,sl_mix,
+	temp4d,temp_total;
+	var sig_mix,
+	rev,out;                // audio signal
+    var
+	gauss = Array.fill(10),
+	angle = Array.fill(10),
+	azim = Array.fill(10),
+	elevation = Array.fill(10);           // angle and azimuth control
+
+
+
+   // display encoder and decoder
+    "Ambisonic encoding via % encoder".format(~encoder.kind).postln;
+   "Ambisonic decoding via % decoder".format(~decoder.kind).postln;
+
+
+
+	sig1 = In.ar(sig1*sl1,1);
+	sig2 = In.ar(sig2*sl2,1);
+	sig3 = In.ar(sig3*sl3,1);
+	sig4 = In.ar(sig4*sl4,1);
+	sig5 = In.ar(sig5*sl5,1);
+
+	//ORBITALS  D
+
+
+
+
+	//4Dxy
+	gauss[0] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[0] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[0] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+			),
+			(
+				azim[0] = z.value(0.625pi,0.875pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[0] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+			),
+			(
+				azim[0] = z.value(-0.875pi,-0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+				elevation[0] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[0],1)/2));
+			))
+
+	););
+
+
+//encode
+    sig1 = FoaEncode.ar(sig1, ~encoder);
+//distance
+	sig1 = FoaDirectO.ar(sig1,angle[0]);
+//azimut - elevation
+   sig1 = FoaTransform.ar(sig1, 'push', pi/2, azim[0],elevation[0]);
+
+	//4Dxz
+
+	gauss[1] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[1] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[1] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+			),
+			(
+				azim[1] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[1] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+			),
+			(
+				azim[1] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+				elevation[1] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[1],1)/2));
+			))
+
+	););
+//encode
+    sig2 = FoaEncode.ar(sig2, ~encoder);
+//distance
+	sig2 = FoaDirectO.ar(sig2,angle[1]);
+//azimut - elevation
+   sig2 = FoaTransform.ar(sig2, 'push', pi/2, azim[1],elevation[1]);
+
+
+
+	//4Dyz
+	gauss[2] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[2] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[2] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+			),
+			(
+				azim[2] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(-0.375pi,-0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[2] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.125pi,0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+			),
+			(
+				azim[2] = z.value(-0.625pi,-0.375pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+				elevation[2] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[2],1)/2));
+			))
+
+	););
+
+//encode
+    sig3 = FoaEncode.ar(sig3, ~encoder);
+//distance
+	sig3 = FoaDirectO.ar(sig3,angle[2]);
+//azimut - elevation
+   sig3 = FoaTransform.ar(sig3, 'push', pi/2, azim[2],elevation[2]);
+
+	//4Dx^2-y^2
+
+	gauss[3] = TGaussRand.kr(0,1,Dust.kr(1));
+	angle[3] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1))/2);
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[3] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+			),
+			(
+				azim[3] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+			))
+		),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				azim[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+			),
+			(
+				azim[3] = z.value(0.875pi,1.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+				elevation[3] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[3],1)/2));
+			))
+
+	););
+//encode
+    sig4 = FoaEncode.ar(sig4, ~encoder);
+//distance
+	sig4 = FoaDirectO.ar(sig4,angle[3]);
+//azimut - elevation
+   sig4 = FoaTransform.ar(sig4, 'push', pi/2, azim[3],elevation[3]);
+
+
+
+
+	//4Dz^2
+	gauss[4] = TGaussRand.kr(0,1,Dust.kr(1));
+
+
+	if((TIRand.kr(0,1,Dust.kr(1)) == 1),
+		(if ((TIRand.kr(0,1,Dust.kr(1)) == 1),
+			(
+				angle[4] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1))/2);
+				azim[4] = z.value(0.375pi,0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+				elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+			),
+			(
+				angle[4] =  z.value(0.75,1.5,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1))/2);
+				azim[4] = z.value(-0.375pi,-0.625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+				elevation[4] = z.value(-0.125pi,0.125pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+			))
+		),
+		(
+			angle[4] =  z.value(0.75,1.25,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1))/2);
+			azim[4] = z.value(-5pi,5pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+			elevation[4] = z.value(-0.0625pi,0.0625pi,(SinOsc.kr((temp4d*temp_total),0,gauss[4],1)/2));
+		);
+	);
+//encode
+    sig5 = FoaEncode.ar(sig5, ~encoder);
+//distance
+	sig5 = FoaDirectO.ar(sig5,angle[4]);
+//azimut - elevation
+   sig5 = FoaTransform.ar(sig5, 'push', pi/2, azim[4],elevation[4]);
+
+
+
+
+	sig_mix = (sig1+sig2+sig3+sig4+sig5)/5;
+
+	sig_mix = sig_mix*sl_mix;
+
+	rev = BFFreeVerb.ar (sig_mix[0], sig_mix[1], sig_mix[2], sig_mix[3], mix: 1, room: 0.999, damp: 1, diffuse: 0.1, mul: 1, add: 0);
+	rev = rev*0;
+
+out = sig_mix+rev;
+	// decode (to cube)
+//   out = FoaDecode.ar(sig_mix, ~decoder);
+	Out.ar(0,out);
+
+}).add;
+
+e = Synth(\orbital_D, [\sig6,b.index+20,\sig7,b.index+21,\sig8,b.index+22,\sig9,b.index+23,\sig10,b.index+24],1,\addToTail);e.run;
+)
+
